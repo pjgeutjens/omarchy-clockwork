@@ -7,18 +7,31 @@ A compact Omarchy Quattro bar widget with five modes:
 - Stopwatch: a regular count-up timer.
 - Countdown: minutes and seconds, with an optional full-screen break view and
   editable message.
-- Alarm: set a one-shot alarm for the next occurrence of a clock time.
+- Alarm: set a one-shot alarm for the next occurrence of a clock time, in
+  either 24-hour time or a 12-hour AM/PM form.
 - Intervals: `X` exercise rounds with a minutes-and-seconds duration.
 - Pomodoro: alternate configurable focus and short-break phases, followed by a
   long break after the final focus cycle. The bar switches to a green coffee
   indicator during breaks, and the panel tracks completed focus sessions.
 
+## What's new in 0.7.0
+
+- Alarm time can use 24-hour time or a 12-hour AM/PM form.
+- Alarm clock, bell, and phone sounds can be selected in the Alarm panel. An
+  alarm repeats its selected sound for at most three minutes, while its bar
+  item pulses until reset.
+
 The timer keeps running when its panel is closed. Exercise intervals play one
 direct PipeWire ping at each round boundary and a three-ping sequence at
 completion, while Omarchy notifications show the corresponding round state.
-Pomodoro uses the same single ping between phases and three-ping completion;
-its sound can be disabled. Breaks start automatically after focus, while the
-next focus phase waits for you to resume it.
+An alarm repeats its selected sound for up to three minutes, then remains
+visibly ringing until it is reset or acknowledged with `R`. Pomodoro uses the
+same single ping between phases and three-ping completion; its sound can be
+disabled. Breaks start automatically after focus, while the next focus phase
+waits for you to resume it.
+
+While an alarm awaits acknowledgement, Clockwork also pulses an urgent-color
+background in the bar so the state remains visible even after its sound stops.
 
 ## Install
 
@@ -97,6 +110,11 @@ message across the current display. The option is off by default. In the
 full-screen view, Space pauses or resumes, `Esc` returns to the panel without
 stopping the countdown, and `R` ends and resets it.
 
+In Alarm mode, enable **12-hour time** to enter an hour from 1 through 12 and
+choose AM or PM. **Alarm sound** cycles through the installed freedesktop
+alarm clock, bell, and phone sounds. Both preferences are saved per widget;
+existing `alarm` IPC calls continue to use 24-hour hours (0 through 23).
+
 The timer can also be scripted through Omarchy Shell IPC:
 
 ```sh
@@ -120,11 +138,11 @@ The interval command accepts `rounds minutes seconds`; the example above sets
 eight rounds of 2 minutes 30 seconds. For compatibility, the earlier forms
 `intervals 8 30 seconds` and `intervals 8 2 minutes` still work.
 
-## Pomodoro settings
+## Saved settings
 
-Changes made in the Pomodoro fields and sound toggle are saved to the widget's
-entry in `~/.config/omarchy/shell.json`. They can also be set from the command
-line:
+Changes made in the Pomodoro fields, its sound toggle, and the Alarm settings
+are saved to the widget's entry in `~/.config/omarchy/shell.json`. They can
+also be set from the command line:
 
 ```sh
 omarchy bar set io.github.pjgeutjens.clockwork pomodoroWorkMinutes 25 --json
@@ -133,6 +151,8 @@ omarchy bar set io.github.pjgeutjens.clockwork pomodoroLongBreakMinutes 15 --jso
 omarchy bar set io.github.pjgeutjens.clockwork pomodoroCycles 4 --json
 omarchy bar set io.github.pjgeutjens.clockwork pomodoroSound true --json
 omarchy bar set io.github.pjgeutjens.clockwork pomodoroBreakColor '#a6e3a1'
+omarchy bar set io.github.pjgeutjens.clockwork alarmUses12Hour true --json
+omarchy bar set io.github.pjgeutjens.clockwork alarmSound 'bell.oga'
 ```
 
 For compatibility with standalone Pomodoro conventions, Clockwork also reads

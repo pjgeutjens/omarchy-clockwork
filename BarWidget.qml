@@ -17,9 +17,12 @@ BarWidget {
     && TimerCore.TimerState.pomodoroSessionStarted
   readonly property bool pomodoroBreak: root.pomodoroSessionVisible
     && TimerCore.TimerState.pomodoroPhase.kind !== "focus"
+  readonly property bool alarmRinging: TimerCore.TimerState.mode === TimerCore.TimerState.alarmMode
+    && TimerCore.TimerState.completed
   readonly property color pomodoroPhaseColor: root.pomodoroBreak
     ? TimerCore.TimerState.pomodoroBreakColor
     : Color.accent
+  readonly property color alarmCueColor: root.bar ? root.bar.urgent : Color.urgent
 
   function configuredInt(primary, alias, fallback, minimum, maximum) {
     var parsed = Number(root.setting(primary, root.setting(alias, fallback)))
@@ -36,6 +39,11 @@ BarWidget {
       root.setting("pomodoroSound", root.setting("sound", true)) !== false,
       root.setting("pomodoroBreakColor", root.setting("breakColor", "#a6e3a1"))
     )
+  }
+
+  function applyAlarmSettings() {
+    TimerCore.TimerState.setAlarmUses12Hour(root.setting("alarmUses12Hour", false) === true)
+    TimerCore.TimerState.setAlarmSound(root.setting("alarmSound", "alarm-clock-elapsed.oga"))
   }
 
   function injectPanel() {
@@ -69,9 +77,13 @@ BarWidget {
   onBarChanged: injectPanel()
   onSettingsChanged: {
     root.applyPomodoroSettings()
+    root.applyAlarmSettings()
     root.injectPanel()
   }
-  Component.onCompleted: root.applyPomodoroSettings()
+  Component.onCompleted: {
+    root.applyPomodoroSettings()
+    root.applyAlarmSettings()
+  }
 
   Loader {
     id: panelLoader
@@ -207,6 +219,21 @@ BarWidget {
       anchors.fill: parent
       anchors.margins: Style.space(2)
       radius: height / 2
+      visible: root.alarmRinging
+      color: root.alarmCueColor
+
+      SequentialAnimation on opacity {
+        running: root.alarmRinging
+        loops: Animation.Infinite
+        NumberAnimation { from: 0.12; to: 0.44; duration: 700; easing.type: Easing.InOutSine }
+        NumberAnimation { from: 0.44; to: 0.12; duration: 700; easing.type: Easing.InOutSine }
+      }
+    }
+
+    Rectangle {
+      anchors.fill: parent
+      anchors.margins: Style.space(2)
+      radius: height / 2
       visible: root.pomodoroSessionVisible
       color: Qt.rgba(
         root.pomodoroPhaseColor.r,
@@ -223,7 +250,9 @@ BarWidget {
 
       Text {
         text: root.pomodoroBreak ? "󰅶" : "◷"
-        color: root.pomodoroSessionVisible
+        color: root.alarmRinging
+          ? root.alarmCueColor
+          : root.pomodoroSessionVisible
           ? root.pomodoroPhaseColor
           : button.active ? button.activeColor : button.foreground
         font.family: button.fontFamily
@@ -235,7 +264,10 @@ BarWidget {
       Text {
         visible: !root.vertical && TimerCore.TimerState.barTimeText !== ""
         text: TimerCore.TimerState.barTimeText
-        color: root.pomodoroSessionVisible
+        textFormat: Text.PlainText
+        color: root.alarmRinging
+          ? root.alarmCueColor
+          : root.pomodoroSessionVisible
           ? root.pomodoroPhaseColor
           : button.active ? button.activeColor : button.foreground
         font.family: button.fontFamily

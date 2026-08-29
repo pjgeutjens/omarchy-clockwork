@@ -42,7 +42,13 @@ Panel {
       if (root.canEditMajorTime) {
         alarmTargets.push({ key: "major-left", item: majorTimeLeft, kind: "time" })
         alarmTargets.push({ key: "major-right", item: majorTimeRight, kind: "time" })
+        if (TimerCore.TimerState.alarmUses12Hour) {
+          alarmTargets.push({ key: "alarm-am", item: alarmAmButton, kind: "button" })
+          alarmTargets.push({ key: "alarm-pm", item: alarmPmButton, kind: "button" })
+        }
       }
+      alarmTargets.push({ key: "alarm-format", item: alarmFormatToggle, kind: "toggle" })
+      alarmTargets.push({ key: "alarm-sound", item: alarmSoundButton, kind: "button" })
       alarmTargets.push({ key: "alarm-message", item: alarmMessage, kind: "text" })
       return alarmTargets
     }
@@ -141,6 +147,17 @@ Panel {
     root.persistSettings(setting)
   }
 
+  function setAlarmUses12Hour(enabled) {
+    TimerCore.TimerState.setAlarmUses12Hour(enabled)
+    root.persistSettings({ alarmUses12Hour: TimerCore.TimerState.alarmUses12Hour })
+    root.clampCursor()
+  }
+
+  function cycleAlarmSound(direction) {
+    TimerCore.TimerState.cycleAlarmSound(direction)
+    root.persistSettings({ alarmSound: TimerCore.TimerState.alarmSound })
+  }
+
   function clampCursor() {
     if (root.cursorTargets.length === 0) {
       root.cursorIndex = 0
@@ -203,6 +220,14 @@ Panel {
       root.clampCursor()
     } else if (target.key === "pomodoro-sound") {
       root.setPomodoroSetting("pomodoro-sound", !TimerCore.TimerState.pomodoroSoundEnabled)
+    } else if (target.key === "alarm-format") {
+      root.setAlarmUses12Hour(!TimerCore.TimerState.alarmUses12Hour)
+    } else if (target.key === "alarm-am") {
+      TimerCore.TimerState.setAlarmMeridiem("AM")
+    } else if (target.key === "alarm-pm") {
+      TimerCore.TimerState.setAlarmMeridiem("PM")
+    } else if (target.key === "alarm-sound") {
+      root.cycleAlarmSound(1)
     }
     return true
   }
@@ -219,6 +244,10 @@ Panel {
     else if (key === "pomodoro-long") root.setPomodoroSetting(key, TimerCore.TimerState.pomodoroLongBreakMinutes + direction)
     else if (key === "pomodoro-sound") root.setPomodoroSetting(key, direction > 0)
     else if (key === "countdown-fullscreen") TimerCore.TimerState.setCountdownFullscreenEnabled(direction > 0)
+    else if (key === "alarm-format") root.setAlarmUses12Hour(direction > 0)
+    else if (key === "alarm-am" || key === "alarm-pm")
+      TimerCore.TimerState.setAlarmMeridiem(direction > 0 ? "PM" : "AM")
+    else if (key === "alarm-sound") root.cycleAlarmSound(direction)
   }
 
   function moveCursorHorizontal(direction) {
@@ -372,6 +401,7 @@ Panel {
               visible: !root.canEditMajorTime
               width: parent.width
               text: TimerCore.TimerState.displayText
+              textFormat: Text.PlainText
               color: root.contentForeground
               font.family: root.contentFontFamily
               font.pixelSize: Style.font.displayLarge * 2
@@ -382,23 +412,36 @@ Panel {
             Row {
               id: majorTimeEditor
               visible: root.canEditMajorTime
+              width: parent.width
               anchors.horizontalCenter: parent.horizontalCenter
               spacing: Style.space(8)
+              readonly property bool hasMeridiem: TimerCore.TimerState.mode === TimerCore.TimerState.alarmMode
+                && TimerCore.TimerState.alarmUses12Hour
+              readonly property real colonWidth: Style.space(18)
+              readonly property real meridiemWidth: hasMeridiem ? Style.space(58) : 0
+              readonly property real timeFieldWidth: Math.max(Style.space(96),
+                (width - colonWidth - meridiemWidth - spacing * (hasMeridiem ? 3 : 2)) / 2)
 
               TimeField {
                 id: majorTimeLeft
+                width: majorTimeEditor.timeFieldWidth
+                fieldWidth: width
                 label: TimerCore.TimerState.mode === TimerCore.TimerState.alarmMode ? "Hour" : "Minutes"
-                from: 0
-                to: TimerCore.TimerState.mode === TimerCore.TimerState.alarmMode ? 23 : 999
+                from: TimerCore.TimerState.mode === TimerCore.TimerState.alarmMode
+                  && TimerCore.TimerState.alarmUses12Hour ? 1 : 0
+                to: TimerCore.TimerState.mode === TimerCore.TimerState.alarmMode
+                  ? TimerCore.TimerState.alarmUses12Hour ? 12 : 23 : 999
                 value: TimerCore.TimerState.mode === TimerCore.TimerState.alarmMode
-                  ? TimerCore.TimerState.alarmHour
+                  ? TimerCore.TimerState.alarmDisplayHour
                   : TimerCore.TimerState.countdownMinutes
                 foreground: root.contentForeground
                 fontFamily: root.contentFontFamily
                 hasCursor: root.cursorKey === "major-left"
                 onModified: function(value) {
                   if (TimerCore.TimerState.mode === TimerCore.TimerState.alarmMode)
-                    TimerCore.TimerState.setAlarmHour(value)
+                    TimerCore.TimerState.alarmUses12Hour
+                      ? TimerCore.TimerState.setAlarmDisplayHour(value)
+                      : TimerCore.TimerState.setAlarmHour(value)
                   else
                     TimerCore.TimerState.setCountdownMinutes(value)
                 }
@@ -410,17 +453,21 @@ Panel {
               }
 
               Text {
+                width: majorTimeEditor.colonWidth
                 text: ":"
                 color: root.contentForeground
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.displayLarge * 2
                 font.bold: true
+                horizontalAlignment: Text.AlignHCenter
                 anchors.top: majorTimeLeft.top
                 anchors.topMargin: (majorTimeLeft.field.height - implicitHeight) / 2
               }
 
               TimeField {
                 id: majorTimeRight
+                width: majorTimeEditor.timeFieldWidth
+                fieldWidth: width
                 label: TimerCore.TimerState.mode === TimerCore.TimerState.alarmMode ? "Minute" : "Seconds"
                 from: 0
                 to: 59
@@ -442,11 +489,54 @@ Panel {
                   if (hovered) root.selectCursor("major-right")
                 }
               }
+
+              Column {
+                id: alarmMeridiemSelector
+                visible: TimerCore.TimerState.mode === TimerCore.TimerState.alarmMode
+                  && TimerCore.TimerState.alarmUses12Hour
+                width: majorTimeEditor.meridiemWidth
+                spacing: Style.space(5)
+                readonly property real buttonHeight: (majorTimeRight.field.height - spacing) / 2
+                anchors.verticalCenter: majorTimeRight.field.verticalCenter
+
+                Button {
+                  id: alarmAmButton
+                  width: Style.space(58)
+                  height: alarmMeridiemSelector.buttonHeight
+                  text: "AM"
+                  foreground: root.contentForeground
+                  fontFamily: root.contentFontFamily
+                  bordered: true
+                  selected: TimerCore.TimerState.alarmMeridiem === "AM"
+                  hasCursor: root.cursorKey === "alarm-am"
+                  onClicked: TimerCore.TimerState.setAlarmMeridiem("AM")
+                  onHovered: function(hovered) {
+                    if (hovered) root.selectCursor("alarm-am")
+                  }
+                }
+
+                Button {
+                  id: alarmPmButton
+                  width: Style.space(58)
+                  height: alarmMeridiemSelector.buttonHeight
+                  text: "PM"
+                  foreground: root.contentForeground
+                  fontFamily: root.contentFontFamily
+                  bordered: true
+                  selected: TimerCore.TimerState.alarmMeridiem === "PM"
+                  hasCursor: root.cursorKey === "alarm-pm"
+                  onClicked: TimerCore.TimerState.setAlarmMeridiem("PM")
+                  onHovered: function(hovered) {
+                    if (hovered) root.selectCursor("alarm-pm")
+                  }
+                }
+              }
             }
 
             Text {
               width: parent.width
               text: TimerCore.TimerState.statusText.toUpperCase()
+              textFormat: Text.PlainText
               color: Qt.darker(root.contentForeground, 1.4)
               font.family: root.contentFontFamily
               font.pixelSize: Style.font.caption
@@ -574,6 +664,7 @@ Panel {
                 id: intervalSummary
                 text: TimerCore.TimerState.intervalRounds + " × "
                   + TimerCore.TimerState.intervalDurationText
+                textFormat: Text.PlainText
                 color: Qt.darker(root.contentForeground, 1.4)
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.caption
@@ -662,6 +753,43 @@ Panel {
             width: parent.width
             spacing: Style.space(10)
 
+            Toggle {
+              id: alarmFormatToggle
+              width: parent.width
+              label: "12-hour time"
+              description: "Show the alarm time with AM or PM"
+              checked: TimerCore.TimerState.alarmUses12Hour
+              foreground: root.contentForeground
+              fontFamily: root.contentFontFamily
+              hasCursor: root.cursorKey === "alarm-format"
+              enabled: !TimerCore.TimerState.running
+              opacity: enabled ? 1 : 0.5
+              onClicked: if (enabled)
+                root.setAlarmUses12Hour(!TimerCore.TimerState.alarmUses12Hour)
+              onHovered: function(hovered) {
+                if (hovered) root.selectCursor("alarm-format")
+              }
+            }
+
+            Button {
+              id: alarmSoundButton
+              width: parent.width
+              text: "Alarm sound · " + TimerCore.TimerState.alarmSoundName
+              iconText: "󰎈"
+              tooltipText: "Click to choose the next installed alarm sound"
+              foreground: root.contentForeground
+              fontFamily: root.contentFontFamily
+              bordered: true
+              leftAlign: true
+              hasCursor: root.cursorKey === "alarm-sound"
+              enabled: !TimerCore.TimerState.running
+              opacity: enabled ? 1 : 0.5
+              onClicked: if (enabled) root.cycleAlarmSound(1)
+              onHovered: function(hovered) {
+                if (hovered) root.selectCursor("alarm-sound")
+              }
+            }
+
             PanelSectionHeader {
               text: "ALARM MESSAGE"
               foreground: root.contentForeground
@@ -724,6 +852,7 @@ Panel {
                   + TimerCore.TimerState.pomodoroShortBreakMinutes + " × "
                   + TimerCore.TimerState.pomodoroCycles + " · "
                   + TimerCore.TimerState.pomodoroLongBreakMinutes + " long"
+                textFormat: Text.PlainText
                 color: Qt.darker(root.contentForeground, 1.4)
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.caption
@@ -931,6 +1060,7 @@ Panel {
               : TimerCore.TimerState.mode === TimerCore.TimerState.alarmMode
                 ? "Space set/unset   ·   R reset   ·   1–5 change mode"
                 : "Space start/pause   ·   R reset   ·   1–5 change mode"
+            textFormat: Text.PlainText
             color: Qt.darker(root.contentForeground, 1.4)
             font.family: root.contentFontFamily
             font.pixelSize: Style.font.caption

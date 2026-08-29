@@ -20,6 +20,8 @@ Item {
   property double nowMs: Date.now()
   property int notifiedIntervals: 0
   property int completionBellsRemaining: 0
+  property string completionSoundFile: "complete.oga"
+  property double alarmRingEndsAt: 0
 
   property int countdownMinutes: 5
   property int countdownSeconds: 0
@@ -30,6 +32,8 @@ Item {
   property int intervalSeconds: 30
   property int alarmHour: 7
   property int alarmMinute: 0
+  property bool alarmUses12Hour: false
+  property string alarmSound: "alarm-clock-elapsed.oga"
   property string alarmMessage: "Alarm"
   property double alarmTargetAt: 0
   property int alarmTargetDurationMs: 0
@@ -92,7 +96,18 @@ Item {
   readonly property int currentRound: mode === intervalsMode
     ? Math.min(Math.max(1, intervalRounds), Math.floor(elapsedMs / intervalDurationMs) + 1)
     : 0
-  readonly property string alarmTimeText: pad2(alarmHour) + ":" + pad2(alarmMinute)
+  readonly property int alarmDisplayHour: alarmUses12Hour
+    ? (alarmHour % 12 === 0 ? 12 : alarmHour % 12)
+    : alarmHour
+  readonly property string alarmMeridiem: alarmHour >= 12 ? "PM" : "AM"
+  readonly property string alarmSoundName: alarmSound === "bell.oga"
+    ? "Bell"
+    : alarmSound === "phone-incoming-call.oga"
+      ? "Phone"
+      : "Alarm clock"
+  readonly property string alarmTimeText: alarmUses12Hour
+    ? alarmDisplayHour + ":" + pad2(alarmMinute) + " " + alarmMeridiem
+    : pad2(alarmHour) + ":" + pad2(alarmMinute)
   readonly property string modeName: mode === stopwatchMode
     ? "Stopwatch"
     : mode === countdownMode
@@ -184,6 +199,8 @@ Item {
   function reset() {
     running = false
     completed = false
+    alarmRingTimer.stop()
+    alarmRingEndsAt = 0
     storedElapsedMs = 0
     notifiedIntervals = 0
     nowMs = Date.now()
@@ -222,6 +239,36 @@ Item {
   function setAlarmHour(value) {
     alarmHour = Math.max(0, Math.min(23, Number(value)))
     reset()
+  }
+
+  function setAlarmDisplayHour(value) {
+    var hour = Math.max(1, Math.min(12, Number(value)))
+    alarmHour = (hour % 12) + (alarmHour >= 12 ? 12 : 0)
+    reset()
+  }
+
+  function setAlarmMeridiem(value) {
+    var hour = alarmHour % 12
+    alarmHour = hour + (String(value).toUpperCase() === "PM" ? 12 : 0)
+    reset()
+  }
+
+  function setAlarmUses12Hour(enabled) {
+    alarmUses12Hour = Boolean(enabled)
+  }
+
+  function setAlarmSound(value) {
+    var next = String(value || "")
+    if (next !== "bell.oga" && next !== "phone-incoming-call.oga")
+      next = "alarm-clock-elapsed.oga"
+    alarmSound = next
+  }
+
+  function cycleAlarmSound(direction) {
+    var sounds = ["alarm-clock-elapsed.oga", "bell.oga", "phone-incoming-call.oga"]
+    var index = sounds.indexOf(alarmSound)
+    if (index < 0) index = 0
+    setAlarmSound(sounds[(index + direction + sounds.length) % sounds.length])
   }
 
   function setAlarmMinute(value) {
@@ -390,7 +437,8 @@ Item {
     running = false
     completed = true
     notifiedIntervals = mode === intervalsMode ? intervalRounds : notifiedIntervals
-    playCompletionSequence()
+    if (mode === alarmMode) startAlarmRinging()
+    else playCompletionSequence("complete.oga")
     notify(mode === intervalsMode
       ? "All " + intervalRounds + " rounds complete"
       : mode === alarmMode
@@ -406,9 +454,17 @@ Item {
     ])
   }
 
-  function playCompletionSequence() {
+  function startAlarmRinging() {
+    alarmRingTimer.stop()
+    alarmRingEndsAt = Date.now() + 3 * 60 * 1000
+    playSound(alarmSound)
+    alarmRingTimer.start()
+  }
+
+  function playCompletionSequence(soundFile) {
     if (mode === pomodoroMode && !pomodoroSoundEnabled) return
     completionBellTimer.stop()
+    completionSoundFile = soundFile || "complete.oga"
     completionBellsRemaining = 3
     playNextCompletionBell()
   }
@@ -419,7 +475,7 @@ Item {
 
   function playNextCompletionBell() {
     if (completionBellsRemaining <= 0) return
-    playSound("complete.oga")
+    playSound(completionSoundFile)
     completionBellsRemaining -= 1
     if (completionBellsRemaining > 0) completionBellTimer.restart()
   }
@@ -445,5 +501,18 @@ Item {
     interval: 625
     repeat: false
     onTriggered: root.playNextCompletionBell()
+  }
+
+  Timer {
+    id: alarmRingTimer
+    interval: 3000
+    repeat: true
+    onTriggered: {
+      if (Date.now() >= root.alarmRingEndsAt) {
+        stop()
+        return
+      }
+      root.playSound(root.alarmSound)
+    }
   }
 }

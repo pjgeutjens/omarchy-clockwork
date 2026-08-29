@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.pjgeutjens.clockwork",
   "name": "Clockwork",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "author": "Pieter Geutjens",
   "license": "MIT",
   "description": "A stopwatch, countdown, alarm, intervals, and Pomodoro timer for the Omarchy bar.",
