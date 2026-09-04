@@ -218,12 +218,16 @@ Item {
   }
 
   function setCountdownMinutes(value) {
-    countdownMinutes = Math.max(0, Math.min(999, Number(value)))
+    var next = Math.max(0, Math.min(999, Number(value)))
+    if (next === countdownMinutes) return
+    countdownMinutes = next
     reset()
   }
 
   function setCountdownSeconds(value) {
-    countdownSeconds = Math.max(0, Math.min(59, Number(value)))
+    var next = Math.max(0, Math.min(59, Number(value)))
+    if (next === countdownSeconds) return
+    countdownSeconds = next
     reset()
   }
 
@@ -237,19 +241,25 @@ Item {
   }
 
   function setAlarmHour(value) {
-    alarmHour = Math.max(0, Math.min(23, Number(value)))
+    var next = Math.max(0, Math.min(23, Number(value)))
+    if (next === alarmHour) return
+    alarmHour = next
     reset()
   }
 
   function setAlarmDisplayHour(value) {
     var hour = Math.max(1, Math.min(12, Number(value)))
-    alarmHour = (hour % 12) + (alarmHour >= 12 ? 12 : 0)
+    var next = (hour % 12) + (alarmHour >= 12 ? 12 : 0)
+    if (next === alarmHour) return
+    alarmHour = next
     reset()
   }
 
   function setAlarmMeridiem(value) {
     var hour = alarmHour % 12
-    alarmHour = hour + (String(value).toUpperCase() === "PM" ? 12 : 0)
+    var next = hour + (String(value).toUpperCase() === "PM" ? 12 : 0)
+    if (next === alarmHour) return
+    alarmHour = next
     reset()
   }
 
@@ -394,18 +404,24 @@ Item {
   }
 
   function setIntervalRounds(value) {
-    intervalRounds = Math.max(1, Math.min(999, Number(value)))
+    var next = Math.max(1, Math.min(999, Number(value)))
+    if (next === intervalRounds) return
+    intervalRounds = next
     reset()
   }
 
   function setIntervalMinutes(value) {
-    intervalMinutes = Math.max(0, Math.min(999, Number(value)))
+    var next = Math.max(0, Math.min(999, Number(value)))
+    if (next === intervalMinutes) return
+    intervalMinutes = next
     if (intervalMinutes === 0 && intervalSeconds === 0) intervalSeconds = 1
     reset()
   }
 
   function setIntervalSeconds(value) {
-    intervalSeconds = Math.max(0, Math.min(59, Number(value)))
+    var next = Math.max(0, Math.min(59, Number(value)))
+    if (next === intervalSeconds) return
+    intervalSeconds = next
     if (intervalMinutes === 0 && intervalSeconds === 0) intervalSeconds = 1
     reset()
   }
