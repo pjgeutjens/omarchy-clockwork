@@ -497,7 +497,6 @@ Panel {
                 width: majorTimeEditor.meridiemWidth
                 spacing: Style.space(5)
                 readonly property real buttonHeight: (majorTimeRight.field.height - spacing) / 2
-                anchors.verticalCenter: majorTimeRight.field.verticalCenter
 
                 Button {
                   id: alarmAmButton
