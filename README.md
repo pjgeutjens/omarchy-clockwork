@@ -14,6 +14,13 @@ A compact Omarchy Quattro bar widget with five modes:
   long break after the final focus cycle. The bar switches to a green coffee
   indicator during breaks, and the panel tracks completed focus sessions.
 
+## What's new in 0.7.2
+
+- Closing the panel keeps a running countdown going.
+- Start uses the value just typed into a time field, without requiring a click
+  elsewhere first. Pending fullscreen break messages also commit before Start.
+- Thanks to @daut for the fixes in PR #2.
+
 ## What's new in 0.7.0
 
 - Alarm time can use 24-hour time or a 12-hour AM/PM form.
