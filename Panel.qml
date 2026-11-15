@@ -95,6 +95,9 @@ Panel {
   }
 
   function startPause() {
+    // Field edits only commit on focus loss, so steal focus first or Start
+    // reads the pre-edit value
+    keyCatcher.forceActiveFocus()
     var shouldOpenFullscreen = !TimerCore.TimerState.running
       && TimerCore.TimerState.mode === TimerCore.TimerState.countdownMode
       && TimerCore.TimerState.countdownFullscreenEnabled

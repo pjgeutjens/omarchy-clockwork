@@ -35,6 +35,7 @@ Column {
     var parsed = parseInt(String(text), 10)
     if (isNaN(parsed)) parsed = root.value
     parsed = Math.max(root.from, Math.min(root.to, parsed))
+    if (parsed === root.value) return
     root.modified(parsed)
   }
 
